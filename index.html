@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DataGuard — Automated Data Quality Auditor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg:        #070b0f;
+  --surface:   #0e1318;
+  --surface2:  #141a21;
+  --border:    #1e2730;
+  --border2:   #2a3441;
+  --text:      #e8f0f7;
+  --muted:     #6b8099;
+  --accent:    #00d4ff;
+  --accent2:   #0099cc;
+  --green:     #00e676;
+  --yellow:    #ffca28;
+  --orange:    #ff7043;
+  --red:       #ff1744;
+  --glow:      0 0 40px rgba(0,212,255,0.15);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Instrument Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Grid background ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ══════════ LANDING SCREEN ══════════ */
+#landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.hero-glow {
+  position: absolute;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 300px;
+  background: radial-gradient(ellipse, rgba(0,212,255,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 48px;
+  animation: fadeDown 0.6s ease both;
+}
+.logo-icon {
+  width: 40px; height: 40px;
+  background: var(--accent);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 0 20px rgba(0,212,255,0.4);
+}
+.logo-text {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.logo-text span { color: var(--accent); }
+
+.hero-title {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(36px, 6vw, 72px);
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin-bottom: 20px;
+  animation: fadeDown 0.6s 0.1s ease both;
+}
+.hero-title .accent { color: var(--accent); }
+.hero-title .dim { color: var(--muted); }
+
+.hero-sub {
+  font-size: 17px;
+  color: var(--muted);
+  text-align: center;
+  max-width: 520px;
+  line-height: 1.6;
+  margin-bottom: 56px;
+  animation: fadeDown 0.6s 0.2s ease both;
+}
+
+/* ── Drop zone ── */
+.dropzone {
+  width: 100%;
+  max-width: 580px;
+  border: 2px dashed var(--border2);
+  border-radius: 20px;
+  padding: 56px 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  background: var(--surface);
+  animation: fadeUp 0.6s 0.3s ease both;
+}
+.dropzone:hover, .dropzone.drag-over {
+  border-color: var(--accent);
+  background: rgba(0,212,255,0.04);
+  box-shadow: var(--glow);
+  transform: translateY(-2px);
+}
+.dropzone.drag-over { transform: scale(1.02); }
+
+.drop-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  display: block;
+  animation: float 3s ease-in-out infinite;
+}
+.drop-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.drop-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+.drop-btn {
+  display: inline-block;
+  padding: 10px 28px;
+  background: var(--accent);
+  color: var(--bg);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: 'Instrument Sans', sans-serif;
+}
+.drop-btn:hover {
+  background: #33ddff;
+  box-shadow: 0 0 20px rgba(0,212,255,0.4);
+}
+#fileInput { display: none; }
+
+/* Second file (optional) */
+.second-file-section {
+  width: 100%;
+  max-width: 580px;
+  margin-top: 16px;
+  animation: fadeUp 0.6s 0.4s ease both;
+}
+.second-file-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 10px 0;
+  transition: color 0.2s;
+  user-select: none;
+}
+.second-file-toggle:hover { color: var(--accent); }
+.second-file-toggle .arrow { transition: transform 0.3s; font-size: 10px; }
+.second-file-toggle.open .arrow { transform: rotate(90deg); }
+
+.second-dropzone {
+  display: none;
+  border: 1px dashed var(--border2);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--muted);
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.second-dropzone:hover { border-color: var(--accent); color: var(--accent); }
+.second-dropzone.has-file { border-color: var(--green); color: var(--green); }
+
+.features-row {
+  display: flex;
+  gap: 24px;
+  margin-top: 48px;
+  flex-wrap: wrap;
+  justify-content: center;
+  animation: fadeUp 0.6s 0.5s ease both;
+}
+.feature-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.feature-chip .dot {
+  width: 6px; height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+/* ══════════ LOADING SCREEN ══════════ */
+#loading {
+  display: none;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.loading-ring {
+  width: 80px; height: 80px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+.loading-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+}
+.loading-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  max-width: 400px;
+  min-height: 40px;
+}
+.loading-bar-wrap {
+  width: 300px;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.loading-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.4s ease;
+}
+
+/* ══════════ RESULTS SCREEN ══════════ */
+#results { display: none; position: relative; z-index: 1; }
+
+.results-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.results-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--accent);
+  padding: 16px 0;
+}
+.results-actions { display: flex; gap: 10px; align-items: center; }
+.btn-ghost {
+  padding: 7px 16px;
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: 'Instrument Sans', sans-serif;
+  transition: all 0.2s;
+}
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-primary {
+  padding: 7px 16px;
+  background: var(--accent);
+  border: none;
+  border-radius: 7px;
+  color: var(--bg);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Instrument Sans', sans-serif;
+  transition: all 0.2s;
+}
+.btn-primary:hover { background: #33ddff; }
+
+/* Nav tabs */
+.tab-nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 40px;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+}
+.tab-btn {
+  padding: 13px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-family: 'Instrument Sans', sans-serif;
+  transition: all 0.2s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--border2);
+  color: var(--muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.tab-badge.warn { background: rgba(255,112,67,0.2); color: var(--orange); }
+.tab-badge.ok   { background: rgba(0,230,118,0.15); color: var(--green); }
+
+.tab-content { padding: 32px 40px; max-width: 1400px; margin: 0 auto; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ── Score Hero ── */
+.score-hero {
+  display: grid;
+  grid-template-columns: 160px 1fr 1fr;
+  gap: 32px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 36px;
+  margin-bottom: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.score-hero::after {
+  content: '';
+  position: absolute;
+  right: -80px; top: -80px;
+  width: 260px; height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--score-glow, rgba(0,212,255,0.08)) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.score-ring-wrap { position: relative; width: 140px; height: 140px; }
+.score-ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.score-ring-bg { fill: none; stroke: var(--border); stroke-width: 8; }
+.score-ring-fg {
+  fill: none;
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 352;
+  stroke-dashoffset: 352;
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1);
+}
+.score-ring-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.score-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+.score-denom { font-size: 11px; color: var(--muted); }
+
+.score-main {}
+.score-grade {
+  font-family: 'Syne', sans-serif;
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.score-status {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.score-interp { font-size: 13px; color: var(--muted); line-height: 1.5; max-width: 380px; }
+
+.score-meta {}
+.score-dataset-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+.score-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.score-meta-row .ico { font-size: 14px; }
+
+/* ── Stat grid ── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 16px;
+  text-align: center;
+  transition: all 0.2s;
+  cursor: default;
+}
+.stat-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.stat-val {
+  font-family: 'Syne', sans-serif;
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-lbl {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── Dim grid ── */
+.dim-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.dim-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+}
+.dim-label {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+.dim-score-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.dim-score-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 22px;
+  font-weight: 600;
+  min-width: 38px;
+}
+.dim-bar { flex: 1; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.dim-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+
+/* ── Charts ── */
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+}
+.chart-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+.chart-wrap { position: relative; height: 220px; }
+
+/* ── Tables ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.card-head {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 9px 14px;
+  text-align: left;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent); }
+.muted { color: var(--muted); font-size: 12px; }
+.ok-row { text-align: center; padding: 28px; color: var(--green); font-size: 13px; }
+
+/* Inline bar */
+.tbar-wrap { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+.tbar { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; max-width: 80px; }
+.tbar-fill { height: 100%; border-radius: 3px; }
+.tbar-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+/* Badge */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-family: 'JetBrains Mono', monospace;
+}
+.b-crit   { background: rgba(255,23,68,0.2);   color: #ff1744; border: 1px solid rgba(255,23,68,0.3); }
+.b-high   { background: rgba(255,112,67,0.2);  color: #ff7043; border: 1px solid rgba(255,112,67,0.3); }
+.b-med    { background: rgba(255,202,40,0.15); color: #ffca28; border: 1px solid rgba(255,202,40,0.3); }
+.b-low    { background: rgba(0,212,255,0.12);  color: #00d4ff; border: 1px solid rgba(0,212,255,0.2); }
+.b-ok     { background: rgba(0,230,118,0.12);  color: #00e676; border: 1px solid rgba(0,230,118,0.2); }
+
+/* KPI cards */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: all 0.2s;
+}
+.kpi-card:hover { transform: translateY(-1px); border-color: var(--border2); }
+.kpi-ico { font-size: 26px; flex-shrink: 0; }
+.kpi-body { flex: 1; }
+.kpi-name { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.kpi-risk { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; }
+.kpi-score-val {
+  font-family: 'Syne', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+/* Remediation */
+.rem-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+.rem-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+}
+.rem-priority { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px; }
+.rem-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.rem-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.rem-list li { font-size: 13px; color: var(--muted); padding-left: 18px; position: relative; line-height: 1.5; }
+.rem-list li::before { content: '→'; position: absolute; left: 0; color: var(--accent); font-size: 11px; top: 1px; }
+
+/* Drift */
+.drift-stats { display: flex; gap: 14px; margin-bottom: 22px; flex-wrap: wrap; }
+.drift-chip {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 20px;
+  text-align: center;
+  min-width: 110px;
+}
+.drift-chip-val { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+.drift-chip-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* ══════════ ANIMATIONS ══════════ */
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+/* ══════════ RESPONSIVE ══════════ */
+@media (max-width: 900px) {
+  .score-hero { grid-template-columns: 1fr; text-align: center; }
+  .score-ring-wrap { margin: 0 auto; }
+  .charts-row { grid-template-columns: 1fr; }
+  .rem-grid { grid-template-columns: 1fr; }
+  .results-header, .tab-nav, .tab-content { padding-left: 16px; padding-right: 16px; }
+}
+@media (max-width: 600px) {
+  .features-row { display: none; }
+  .hero-title { font-size: 32px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     LANDING SCREEN
+══════════════════════════════════════════ -->
+<section id="landing">
+  <div class="hero-glow"></div>
+
+  <div class="logo">
+    <div class="logo-icon">⬡</div>
+    <div class="logo-text">Data<span>Guard</span></div>
+  </div>
+
+  <h1 class="hero-title">
+    Audit your data<br>
+    <span class="accent">in seconds.</span>
+    <span class="dim"> Free.</span>
+  </h1>
+  <p class="hero-sub">
+    Drop any CSV file. Get a full data quality report — missing values, outliers,
+    duplicates, categorical issues, and distribution drift. Runs entirely in your browser.
+    Your data never leaves your device.
+  </p>
+
+  <!-- Primary drop zone -->
+  <div class="dropzone" id="dropzone" onclick="document.getElementById('fileInput').click()">
+    <span class="drop-icon">📂</span>
+    <div class="drop-title">Drop your CSV here</div>
+    <div class="drop-sub">or click to browse · supports up to 50MB</div>
+    <div class="drop-btn">Choose File</div>
+    <input type="file" id="fileInput" accept=".csv,.tsv">
+  </div>
+
+  <!-- Secondary (optional baseline) -->
+  <div class="second-file-section">
+    <div class="second-file-toggle" id="secondToggle" onclick="toggleSecond()">
+      <span class="arrow">▶</span>
+      <span>+ Add a previous-period file to detect distribution drift (optional)</span>
+    </div>
+    <div class="second-dropzone" id="secondDropzone" onclick="document.getElementById('fileInput2').click()">
+      📎 Drop previous period CSV here (optional — enables drift analysis)
+      <input type="file" id="fileInput2" accept=".csv,.tsv" style="display:none">
+    </div>
+  </div>
+
+  <div class="features-row">
+    <div class="feature-chip"><span class="dot"></span> Missing Value Detection</div>
+    <div class="feature-chip"><span class="dot"></span> IQR + Z-Score Outliers</div>
+    <div class="feature-chip"><span class="dot"></span> Duplicate Analysis</div>
+    <div class="feature-chip"><span class="dot"></span> Distribution Drift</div>
+    <div class="feature-chip"><span class="dot"></span> DQ Score 0–100</div>
+    <div class="feature-chip"><span class="dot"></span> 100% Browser-based</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     LOADING SCREEN
+══════════════════════════════════════════ -->
+<section id="loading">
+  <div class="loading-ring"></div>
+  <div class="loading-title">Analysing your data…</div>
+  <div class="loading-status" id="loadingStatus">Initialising Python runtime…</div>
+  <div class="loading-bar-wrap">
+    <div class="loading-bar" id="loadingBar"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     RESULTS SCREEN
+══════════════════════════════════════════ -->
+<section id="results">
+  <header class="results-header">
+    <div class="results-logo">⬡ DataGuard</div>
+    <div class="results-actions">
+      <button class="btn-ghost" onclick="downloadJSON()">⬇ JSON Report</button>
+      <button class="btn-ghost" onclick="resetApp()">← New File</button>
+      <button class="btn-primary" onclick="downloadHTML()">⬇ Save Dashboard</button>
+    </div>
+  </header>
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" onclick="showTab('overview',this)">Overview</button>
+    <button class="tab-btn" onclick="showTab('completeness',this)">Completeness <span class="tab-badge" id="badge-miss">—</span></button>
+    <button class="tab-btn" onclick="showTab('anomalies',this)">Anomalies <span class="tab-badge" id="badge-out">—</span></button>
+    <button class="tab-btn" onclick="showTab('duplicates',this)">Duplicates <span class="tab-badge" id="badge-dup">—</span></button>
+    <button class="tab-btn" onclick="showTab('categorical',this)">Categorical <span class="tab-badge" id="badge-cat">—</span></button>
+    <button class="tab-btn" onclick="showTab('drift',this)">Drift <span class="tab-badge" id="badge-drift">—</span></button>
+    <button class="tab-btn" onclick="showTab('kpi',this)">KPI Risk</button>
+    <button class="tab-btn" onclick="showTab('remediation',this)">Remediation</button>
+  </nav>
+
+  <div class="tab-content">
+    <div id="tab-overview"     class="tab-pane active"></div>
+    <div id="tab-completeness" class="tab-pane"></div>
+    <div id="tab-anomalies"    class="tab-pane"></div>
+    <div id="tab-duplicates"   class="tab-pane"></div>
+    <div id="tab-categorical"  class="tab-pane"></div>
+    <div id="tab-drift"        class="tab-pane"></div>
+    <div id="tab-kpi"          class="tab-pane"></div>
+    <div id="tab-remediation"  class="tab-pane"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════
+     PYODIDE + ANALYSIS ENGINE
+══════════════════════════════════════════ -->
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+let pyodide = null;
+let reportData = null;
+let csvFile1 = null, csvFile2 = null;
+let chartInstances = {};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Drop zone wiring
+// ─────────────────────────────────────────────────────────────────────────────
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover',  e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile1(f);
+});
+document.getElementById('fileInput').addEventListener('change', e => {
+  if (e.target.files[0]) handleFile1(e.target.files[0]);
+});
+
+const dz2 = document.getElementById('secondDropzone');
+dz2.addEventListener('dragover',  e => { e.preventDefault(); });
+dz2.addEventListener('drop', e => {
+  e.preventDefault();
+  const f = e.dataTransfer.files[0];
+  if (f) handleFile2(f);
+});
+document.getElementById('fileInput2').addEventListener('change', e => {
+  if (e.target.files[0]) handleFile2(e.target.files[0]);
+});
+
+function toggleSecond() {
+  const toggle = document.getElementById('secondToggle');
+  const dz2 = document.getElementById('secondDropzone');
+  const isOpen = toggle.classList.toggle('open');
+  dz2.style.display = isOpen ? 'block' : 'none';
+}
+
+function handleFile1(f) {
+  csvFile1 = f;
+  dz.querySelector('.drop-title').textContent = '✅ ' + f.name;
+  dz.querySelector('.drop-sub').textContent = (f.size/1024).toFixed(1) + ' KB — ready to analyse';
+  dz.querySelector('.drop-btn').textContent = 'Run Audit';
+  dz.onclick = runAudit;
+}
+function handleFile2(f) {
+  csvFile2 = f;
+  document.getElementById('secondDropzone').textContent = '✅ ' + f.name + ' (baseline)';
+  document.getElementById('secondDropzone').classList.add('has-file');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pyodide loader
+// ─────────────────────────────────────────────────────────────────────────────
+async function loadPyodide() {
+  setStatus('Loading Python runtime (Pyodide)…', 10);
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js';
+  document.head.appendChild(script);
+  await new Promise(r => script.onload = r);
+  pyodide = await window.loadPyodide();
+  setStatus('Installing pandas & scipy…', 35);
+  await pyodide.loadPackage(['pandas', 'numpy', 'scipy']);
+  setStatus('Ready.', 60);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Run audit
+// ─────────────────────────────────────────────────────────────────────────────
+async function runAudit() {
+  if (!csvFile1) return;
+  show('loading');
+
+  try {
+    if (!pyodide) await loadPyodide();
+
+    setStatus('Reading your CSV…', 65);
+    const csv1 = await csvFile1.text();
+    const csv2 = csvFile2 ? await csvFile2.text() : null;
+
+    setStatus('Running data quality checks…', 75);
+
+    // Write CSVs into Pyodide's virtual filesystem
+    pyodide.FS.writeFile('/data1.csv', csv1);
+    if (csv2) pyodide.FS.writeFile('/data2.csv', csv2);
+
+    const result = await pyodide.runPythonAsync(buildPythonCode(!!csv2));
+    setStatus('Generating report…', 95);
+
+    reportData = JSON.parse(result);
+    setStatus('Done!', 100);
+
+    await new Promise(r => setTimeout(r, 400));
+    renderReport(reportData);
+    show('results');
+
+  } catch (err) {
+    setStatus('Error: ' + err.message, 0);
+    console.error(err);
+    setTimeout(resetApp, 4000);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Python analysis code (runs inside Pyodide)
+// ─────────────────────────────────────────────────────────────────────────────
+function buildPythonCode(hasPrev) {
+  return `
+import json, re
+import numpy as np
+import pandas as pd
+from scipy import stats
+
+def load(path):
+    try:
+        df = pd.read_csv(path, low_memory=False)
+    except Exception:
+        df = pd.read_csv(path, encoding='latin-1', low_memory=False)
+    df.columns = [re.sub(r'\\s+','_',c.strip()) for c in df.columns]
+    for col in df.select_dtypes(include='object').columns:
+        if any(k in col.lower() for k in ('date','time','dt','ts')):
+            try: df[col] = pd.to_datetime(df[col], infer_datetime_format=True)
+            except: pass
+    return df
+
+def profile(df):
+    cols = {}
+    for col in df.columns:
+        info = {'dtype': str(df[col].dtype), 'null_count': int(df[col].isna().sum()),
+                'distinct': int(df[col].nunique(dropna=False))}
+        if pd.api.types.is_numeric_dtype(df[col]):
+            s = df[col].dropna()
+            info.update({'type_class':'numeric','count':int(len(s)),
+                'mean':round(float(s.mean()),4) if len(s) else None,
+                'std':round(float(s.std()),4) if len(s) else None,
+                'min':round(float(s.min()),4) if len(s) else None,
+                'q1':round(float(s.quantile(.25)),4) if len(s) else None,
+                'median':round(float(s.median()),4) if len(s) else None,
+                'q3':round(float(s.quantile(.75)),4) if len(s) else None,
+                'max':round(float(s.max()),4) if len(s) else None,
+                'negative_pct':round(float((s<0).mean()),4)})
+        elif pd.api.types.is_datetime64_any_dtype(df[col]):
+            s = df[col].dropna()
+            info.update({'type_class':'datetime','count':int(len(s)),
+                'future_count':int((s > pd.Timestamp.now()).sum())})
+        else:
+            vc = df[col].value_counts(dropna=False)
+            info.update({'type_class':'categorical','top_values':{str(k):int(v) for k,v in vc.head(8).items()}})
+        cols[col] = info
+    return {'dataset':{'row_count':int(len(df)),'column_count':int(len(df.columns)),
+            'columns':list(df.columns),'dtypes':{c:str(df[c].dtype) for c in df.columns}},
+            'columns': cols}
+
+SEN = re.compile(r'^(-999|-9999|n/?a|na|nan|null|none|unknown|missing|#n/a|\\?|\\.|--)\$', re.I)
+
+def missingness(df):
+    cols={}; tot=0
+    for col in df.columns:
+        nc = int(df[col].isna().sum())
+        sc = int(df[col].astype(str).str.strip().apply(lambda v:bool(SEN.match(v))).sum()) if df[col].dtype==object else 0
+        eff = nc+sc; pct = eff/max(len(df),1)
+        sev = 'CRITICAL' if pct==1 else 'HIGH' if pct>.05 else 'MEDIUM' if pct>.01 else 'LOW' if pct>0 else 'OK'
+        cols[col]={'null_count':nc,'sentinel_count':sc,'effective_missing':eff,'effective_pct':round(float(pct),4),'severity':sev}
+        tot += eff
+    overall = tot/max(len(df)*len(df.columns),1)
+    crit = [c for c,v in cols.items() if v['severity'] in ('HIGH','CRITICAL')]
+    empty = [c for c,v in cols.items() if v['effective_pct']==1.0]
+    return {'columns':cols,'summary':{'total_missing_cells':tot,'overall_missing_pct':round(float(overall),4),
+            'critical_cols':crit,'completely_empty_cols':empty,
+            'columns_with_any_null':int(sum(1 for v in cols.values() if v['null_count']>0))}}
+
+def outliers(df):
+    num = df.select_dtypes(include=[np.number]).columns.tolist()
+    cols={}; impos={}; total=0
+    for col in num:
+        s = df[col].dropna()
+        if len(s)<4: continue
+        q1,q3 = s.quantile(.25),s.quantile(.75)
+        iqr = q3-q1
+        lf,uf = q1-1.5*iqr, q3+1.5*iqr
+        im = (df[col]<lf)|(df[col]>uf)
+        zs = np.abs(stats.zscore(s, nan_policy='omit'))
+        zm = pd.Series(zs,index=s.index)>3.0
+        cm = im|df.index.isin(s[zm].index)
+        cpct = cm.sum()/max(len(df),1)
+        sev = 'HIGH' if cpct>.10 else 'MEDIUM' if cpct>.05 else 'LOW' if cpct>.01 else 'OK'
+        cols[col]={'iqr_outlier_count':int(im.sum()),'zscore_outlier_count':int(zm.sum()),
+            'combined_outlier_count':int(cm.sum()),'combined_outlier_pct':round(float(cpct),4),
+            'iqr_lower_fence':round(float(lf),4),'iqr_upper_fence':round(float(uf),4),'severity':sev}
+        total += int(cm.sum())
+        # impossible
+        cl = col.lower()
+        iss=[]
+        if any(k in cl for k in ('revenue','price','cost','sales','amount','qty','quantity','count','age')):
+            neg = int((s<0).sum())
+            if neg: iss.append({'rule':'negative_values','count':neg,'detail':f'{neg} negative values in {col}','severity':'HIGH'})
+        if any(k in cl for k in ('pct','percent','rate','ratio')):
+            upper = 100.0 if s.max()>1 else 1.0
+            oor = int(((s<0)|(s>upper)).sum())
+            if oor: iss.append({'rule':'out_of_range','count':oor,'detail':f'{oor} values outside [0,{upper}]','severity':'MEDIUM'})
+        if iss: impos[col]=iss
+    for col in df.select_dtypes(include=['datetime64']).columns:
+        fut = int((df[col]>pd.Timestamp.now()).sum())
+        if fut: impos[col]={'issue':'future_dates','count':fut,'detail':f'{fut} future dates in {col}'}
+    severe = [c for c,v in cols.items() if v['severity'] in ('HIGH','MEDIUM')]
+    return {'columns':cols,'impossible_values':impos,
+            'summary':{'numeric_columns_checked':len(num),'total_outlier_flags':total,
+                       'severe_outlier_columns':severe,'impossible_value_columns':list(impos.keys())}}
+
+def duplicates(df):
+    fdm = df.duplicated(keep='first')
+    fdc = int(fdm.sum()); fdp = fdc/max(len(df),1)
+    kp = re.compile(r'(id|key|code|email|phone|sku|uuid|ref)',re.I)
+    kd={}
+    for col in [c for c in df.columns if kp.search(c)]:
+        dc = int(df[col].dropna().duplicated().sum())
+        if dc: kd[col]={'duplicate_values':dc,'duplicate_pct':round(dc/max(len(df),1),4)}
+    sc = df.select_dtypes(include='object').columns.tolist()
+    nd = int(df[sc].apply(lambda c:c.astype(str).str.strip().str.lower()).duplicated(keep='first').sum()) if sc else 0
+    hn = int((df[sc].apply(lambda c:c.astype(str).str.strip().str.lower()).duplicated(keep='first') & ~fdm).sum()) if sc else 0
+    sev = 'HIGH' if fdp>.05 else 'MEDIUM' if fdp>.01 else 'LOW' if fdp>.001 else 'OK'
+    return {'full_row_duplicates':fdc,'full_row_duplicate_pct':round(float(fdp),4),
+            'key_column_duplicates':kd,'near_duplicate_count':nd,'hidden_near_duplicate_count':hn,'severity':sev}
+
+def categoricals(df):
+    cats={}; total=0
+    for col in df.select_dtypes(include='object').columns:
+        s = df[col].dropna().astype(str); issues=[]
+        lc = s.str.strip().str.lower().value_counts()
+        oc = s.str.strip().value_counts()
+        if len(lc)<len(oc):
+            v2={}
+            for val in oc.index: v2.setdefault(val.lower(),[]).append(val)
+            cv = {k:v for k,v in v2.items() if len(v)>1}
+            if cv: issues.append({'issue_type':'case_variants','count':len(cv),'examples':dict(list(cv.items())[:3]),'severity':'MEDIUM','description':f'{len(cv)} values in multiple case forms'})
+        ws = int((s!=s.str.strip()).sum())
+        if ws: issues.append({'issue_type':'whitespace','count':ws,'severity':'LOW','description':f'{ws} values with leading/trailing whitespace'})
+        freq = s.value_counts(normalize=True)
+        rare = freq[freq<0.001]
+        if len(rare)>0 and len(freq)>2: issues.append({'issue_type':'rare_categories','count':int(len(rare)),'values':rare.index.tolist()[:5],'severity':'LOW','description':f'{len(rare)} rare categories (< 0.1%) — possible typos'})
+        if issues: cats[col]=issues; total+=len(issues)
+    return {'columns':cats,'summary':{'categorical_columns_checked':int(len(df.select_dtypes(include="object").columns)),'columns_with_issues':len(cats),'total_issues_found':total}}
+
+def drift(curr, prev):
+    if prev is None: return None
+    cols={}; dc=0
+    common = [c for c in curr.columns if c in prev.columns]
+    for col in common:
+        c = curr[col].dropna(); p = prev[col].dropna()
+        r = {'drift_detected': False}
+        if pd.api.types.is_numeric_dtype(curr[col]) and len(c)>1 and len(p)>1:
+            mc,mp = float(c.mean()),float(p.mean())
+            rms = abs(mc-mp)/(abs(mp)+1e-9)
+            ks,kp = stats.ks_2samp(c,p)
+            if rms>.20 or kp<.05:
+                dc+=1
+                sev = 'HIGH' if rms>.35 or kp<.01 else 'MEDIUM'
+                r = {'drift_detected':True,'type_class':'numeric','severity':sev,
+                    'mean_current':round(mc,4),'mean_previous':round(mp,4),
+                    'mean_shift_pct':round(rms*100,2),'ks_p_value':round(float(kp),4),
+                    'explanation':f"'{col}' mean {'increased' if mc>mp else 'decreased'} by {rms:.1%} ({mp:.3g}→{mc:.3g})"}
+        elif curr[col].dtype==object:
+            cp = c.value_counts(normalize=True); pp = p.value_counts(normalize=True)
+            all_c = set(cp.index)|set(pp.index)
+            nc=[x for x in all_c if x in cp.index and x not in pp.index]
+            gc=[x for x in all_c if x not in cp.index and x in pp.index]
+            ps={str(cat):round(float(cp.get(cat,0))-float(pp.get(cat,0)),4) for cat in all_c if abs(float(cp.get(cat,0))-float(pp.get(cat,0)))>.20}
+            if nc or gc or ps:
+                dc+=1
+                r = {'drift_detected':True,'type_class':'categorical','severity':'HIGH' if gc else 'MEDIUM',
+                    'new_categories':nc[:5],'disappeared_cats':gc[:5],'proportion_shifts':dict(list(ps.items())[:5]),
+                    'explanation':f"'{col}': {len(nc)} new, {len(gc)} missing categories"}
+        cols[col] = r
+    drifted = [c for c,v in cols.items() if v.get('drift_detected')]
+    return {'columns':cols,'summary':{'columns_compared':len(common),'columns_with_drift':dc,
+            'drifted_column_names':drifted,'drift_pct_of_schema':round(dc/max(len(common),1),4)}}
+
+def score(m,o,d,c,sh):
+    s={}
+    s['missingness'] = max(0, 100 - m['summary']['overall_missing_pct']*300)
+    nc = o['summary']['numeric_columns_checked']
+    pen = (len(o['summary']['severe_outlier_columns'])/max(nc,1))*60 + min(len(o['summary']['impossible_value_columns'])*10,40) if nc else 0
+    s['outliers'] = max(0, 100-pen)
+    s['duplicates'] = max(0, 100 - d['full_row_duplicate_pct']*500)
+    ci = c['summary']['categorical_columns_checked']
+    s['categorical_issues'] = max(0, 100-(c['summary']['columns_with_issues']/max(ci,1))*50) if ci else 100
+    s['distribution_shift'] = max(0, 100-(sh['summary'].get('drift_pct_of_schema',0)*150)) if sh else 100
+    W = {'missingness':.25,'outliers':.20,'duplicates':.20,'categorical_issues':.15,'distribution_shift':.20}
+    comp = round(sum(s[k]*W[k] for k in W),2)
+    grade = 'A' if comp>=90 else 'B' if comp>=75 else 'C' if comp>=60 else 'D' if comp>=40 else 'F'
+    status = {'A':'EXCELLENT','B':'GOOD','C':'FAIR','D':'POOR','F':'CRITICAL'}[grade]
+    return {'composite_score':comp,'grade':grade,'status':status,'dimension_scores':{k:round(v,2) for k,v in s.items()}}
+
+# ── Run ──────────────────────────────────────────────────────────────────────
+df1 = load('/data1.csv')
+df2 = load('/data2.csv') if ${hasPrev ? 'True' : 'False'} else None
+
+prof = profile(df1)
+miss = missingness(df1)
+out  = outliers(df1)
+dup  = duplicates(df1)
+cat  = categoricals(df1)
+sh   = drift(df1, df2)
+sc   = score(miss, out, dup, cat, sh)
+
+result = json.dumps({'data_quality_score':sc,'dataset_profile':prof,
+    'missingness_analysis':miss,'outlier_analysis':out,
+    'duplicate_analysis':dup,'categorical_analysis':cat,'distribution_shift':sh},
+    default=str)
+result
+`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Render report
+// ─────────────────────────────────────────────────────────────────────────────
+function renderReport(r) {
+  Object.values(chartInstances).forEach(c => c.destroy());
+  chartInstances = {};
+
+  const sc   = r.data_quality_score;
+  const prof = r.dataset_profile;
+  const miss = r.missingness_analysis;
+  const out  = r.outlier_analysis;
+  const dup  = r.duplicate_analysis;
+  const cat  = r.categorical_analysis;
+  const sh   = r.distribution_shift;
+
+  // Badges
+  const missIssues = (miss.summary.critical_cols||[]).length;
+  const outIssues  = (out.summary.severe_outlier_columns||[]).length + (out.summary.impossible_value_columns||[]).length;
+  const dupSev     = dup.severity;
+  const catIssues  = cat.summary.columns_with_issues;
+  const driftN     = sh ? sh.summary.columns_with_drift : 0;
+
+  setBadge('badge-miss', missIssues, missIssues > 0);
+  setBadge('badge-out',  outIssues,  outIssues > 0);
+  setBadge('badge-dup',  dup.full_row_duplicates, dupSev !== 'OK');
+  setBadge('badge-cat',  catIssues,  catIssues > 0);
+  setBadge('badge-drift', driftN,    driftN > 0);
+
+  renderOverview(sc, prof, miss, out, dup, sh);
+  renderCompleteness(miss, prof);
+  renderAnomalies(out);
+  renderDuplicates(dup);
+  renderCategorical(cat);
+  renderDrift(sh);
+  renderKPI(sc);
+  renderRemediation(sc, miss, out, dup, cat, sh);
+}
+
+function setBadge(id, val, warn) {
+  const el = document.getElementById(id);
+  el.textContent = val;
+  el.className = 'tab-badge' + (warn ? ' warn' : ' ok');
+}
+
+Chart.defaults.color = '#6b8099';
+Chart.defaults.borderColor = '#1e2730';
+Chart.defaults.font.family = "'Instrument Sans', sans-serif";
+
+// ── OVERVIEW ─────────────────────────────────────────────────────────────────
+function renderOverview(sc, prof, miss, out, dup, sh) {
+  const score = sc.composite_score;
+  const color = score>=90?'#00e676':score>=75?'#69f0ae':score>=60?'#ffca28':score>=40?'#ff7043':'#ff1744';
+
+  const ds = prof.dataset;
+  document.getElementById('tab-overview').innerHTML = `
+    <div class="score-hero" style="--score-glow:${color}22">
+      <div class="score-ring-wrap">
+        <svg class="score-ring-svg" viewBox="0 0 120 120">
+          <circle class="score-ring-bg" cx="60" cy="60" r="56"/>
+          <circle class="score-ring-fg" id="scoreRingFg" cx="60" cy="60" r="56" stroke="${color}"/>
+        </svg>
+        <div class="score-ring-label">
+          <div class="score-num" style="color:${color}">${score.toFixed(0)}</div>
+          <div class="score-denom">/100</div>
+        </div>
+      </div>
+      <div class="score-main">
+        <div class="score-grade" style="color:${color}">${sc.grade}</div>
+        <div class="score-status" style="color:${color}">${sc.status}</div>
+        <div class="score-interp">${scoreInterp(sc.status)}</div>
+      </div>
+      <div class="score-meta">
+        <div class="score-dataset-name">${csvFile1?.name || 'Dataset'}</div>
+        <div class="score-meta-row"><span class="ico">📋</span> ${ds.row_count.toLocaleString()} rows</div>
+        <div class="score-meta-row"><span class="ico">📊</span> ${ds.column_count} columns</div>
+        <div class="score-meta-row"><span class="ico">🕐</span> ${new Date().toLocaleString()}</div>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      ${statCard(ds.row_count.toLocaleString(), 'Total Rows', '#00d4ff')}
+      ${statCard(ds.column_count, 'Columns', '#00d4ff')}
+      ${statCard((miss.summary.overall_missing_pct*100).toFixed(1)+'%', 'Missing Data', miss.summary.overall_missing_pct>0.05?'#ff7043':miss.summary.overall_missing_pct>0.01?'#ffca28':'#00e676')}
+      ${statCard(dup.full_row_duplicates.toLocaleString(), 'Duplicates', dup.full_row_duplicates>0?'#ffca28':'#00e676')}
+      ${statCard(out.summary.total_outlier_flags.toLocaleString(), 'Outlier Flags', out.summary.total_outlier_flags>0?'#ff7043':'#00e676')}
+      ${statCard(sh?sh.summary.columns_with_drift:'-', 'Drifted Cols', sh&&sh.summary.columns_with_drift>0?'#ff7043':'#00e676')}
+    </div>
+
+    <div class="dim-grid">
+      ${Object.entries(sc.dimension_scores).map(([k,v]) => dimCard(k,v)).join('')}
+    </div>
+
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-label">Dimension Scores — Radar</div>
+        <div class="chart-wrap"><canvas id="radarC"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-label">Score Breakdown</div>
+        <div class="chart-wrap"><canvas id="barC"></canvas></div>
+      </div>
+    </div>
+  `;
+
+  // Animate ring
+  requestAnimationFrame(() => {
+    const fg = document.getElementById('scoreRingFg');
+    const offset = 352 - (score/100)*352;
+    setTimeout(() => fg.style.strokeDashoffset = offset, 50);
+  });
+
+  const dimL = Object.keys(sc.dimension_scores).map(k => k.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase()));
+  const dimV = Object.values(sc.dimension_scores);
+  const dimC = dimV.map(v => v>=80?'#00e676':v>=60?'#ffca28':'#ff7043');
+
+  chartInstances.radar = new Chart(document.getElementById('radarC'), {
+    type: 'radar',
+    data: { labels: dimL, datasets: [{ label: 'Score', data: dimV,
+      backgroundColor: 'rgba(0,212,255,0.1)', borderColor: '#00d4ff',
+      pointBackgroundColor: dimC, pointRadius: 4, borderWidth: 2 }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      scales:{ r:{ min:0,max:100, ticks:{stepSize:25,backdropColor:'transparent',font:{size:9}},
+        grid:{color:'#1e2730'}, angleLines:{color:'#1e2730'},
+        pointLabels:{font:{size:10},color:'#6b8099'} } },
+      plugins:{ legend:{display:false} } }
+  });
+
+  chartInstances.bar = new Chart(document.getElementById('barC'), {
+    type: 'bar',
+    data: { labels: dimL, datasets: [{ data: dimV,
+      backgroundColor: dimC.map(c=>c+'55'), borderColor: dimC, borderWidth:2, borderRadius:6 }] },
+    options: { indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      scales:{ x:{min:0,max:100,grid:{color:'#1e2730'},ticks:{font:{size:10}}},
+        y:{grid:{display:false},ticks:{font:{size:11}}} },
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.raw.toFixed(1)+'/100'}} } }
+  });
+}
+
+// ── COMPLETENESS ──────────────────────────────────────────────────────────────
+function renderCompleteness(miss, prof) {
+  const cols = miss.columns;
+  const rows = Object.entries(cols)
+    .filter(([,v]) => v.severity !== 'OK')
+    .sort((a,b) => b[1].effective_pct - a[1].effective_pct);
+
+  const chartData = Object.entries(cols)
+    .filter(([,v]) => v.effective_pct > 0)
+    .sort((a,b) => b[1].effective_pct - a[1].effective_pct)
+    .slice(0, 14);
+
+  const types = {numeric:0,categorical:0,datetime:0};
+  Object.values(prof.columns).forEach(c => { types[c.type_class] = (types[c.type_class]||0)+1; });
+
+  document.getElementById('tab-completeness').innerHTML = `
+    <div class="charts-row">
+      <div class="chart-card">
+        <div class="chart-label">Missing % per Column</div>
+        <div class="chart-wrap"><canvas id="missC"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-label">Column Type Distribution</div>
+        <div class="chart-wrap"><canvas id="typeC"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">Column Missingness Detail</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Nulls</th><th>Sentinels</th><th>Missing %</th><th>Severity</th><th>Action</th></tr></thead>
+          <tbody>
+            ${rows.length ? rows.map(([col,v]) => `
+              <tr>
+                <td class="mono">${col}</td>
+                <td>${v.null_count.toLocaleString()}</td>
+                <td>${v.sentinel_count}</td>
+                <td>${tbar(v.effective_pct*100, sevColor(v.severity))}</td>
+                <td>${badge(v.severity)}</td>
+                <td class="muted">${missRec(v.severity)}</td>
+              </tr>`).join('') : '<tr><td colspan="6" class="ok-row">✅ No significant missing values</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+  chartInstances.miss = new Chart(document.getElementById('missC'), {
+    type: 'bar',
+    data: { labels: chartData.map(([k]) => k),
+      datasets: [{ data: chartData.map(([,v]) => +(v.effective_pct*100).toFixed(2)),
+        backgroundColor: chartData.map(([,v]) => sevColor(v.severity)+'99'),
+        borderColor: chartData.map(([,v]) => sevColor(v.severity)),
+        borderWidth: 2, borderRadius: 4 }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      scales:{ x:{grid:{display:false},ticks:{font:{size:9},maxRotation:45}},
+        y:{grid:{color:'#1e2730'},ticks:{callback:v=>v+'%',font:{size:9}}} },
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>' '+c.raw+'% missing'}} } }
+  });
+
+  chartInstances.type = new Chart(document.getElementById('typeC'), {
+    type: 'doughnut',
+    data: { labels:['Numeric','Categorical','Datetime'],
+      datasets:[{ data:[types.numeric,types.categorical,types.datetime||0],
+        backgroundColor:['#00d4ff','#ffca28','#00e676'], borderColor:'#0e1318', borderWidth:3 }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{position:'bottom',labels:{padding:16,font:{size:12}}},
+        tooltip:{callbacks:{label:c=>' '+c.raw+' columns'}} } }
+  });
+}
+
+// ── ANOMALIES ─────────────────────────────────────────────────────────────────
+function renderAnomalies(out) {
+  const ocols = Object.entries(out.columns).filter(([,v]) => v.severity !== 'OK');
+  const impos = Object.entries(out.impossible_values || {});
+
+  document.getElementById('tab-anomalies').innerHTML = `
+    <div class="card">
+      <div class="card-head">Statistical Outliers — IQR + Z-Score Union Method</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>IQR Outliers</th><th>Z-Score</th><th>Combined</th><th>Rate</th><th>Severity</th></tr></thead>
+          <tbody>
+            ${ocols.length ? ocols.map(([col,v]) => `
+              <tr>
+                <td class="mono">${col}</td>
+                <td>${v.iqr_outlier_count.toLocaleString()}</td>
+                <td>${v.zscore_outlier_count.toLocaleString()}</td>
+                <td>${v.combined_outlier_count.toLocaleString()}</td>
+                <td>${tbar(v.combined_outlier_pct*100*3, sevColor(v.severity), (v.combined_outlier_pct*100).toFixed(1)+'%')}</td>
+                <td>${badge(v.severity)}</td>
+              </tr>`).join('') : '<tr><td colspan="6" class="ok-row">✅ No severe outliers detected</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">Impossible / Invalid Values</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Rule</th><th>Count</th><th>Severity</th><th>Detail</th></tr></thead>
+          <tbody>
+            ${impos.length ? impos.map(([col, issues]) => {
+              const list = Array.isArray(issues) ? issues : [issues];
+              return list.map(i => `
+                <tr>
+                  <td class="mono">${col}</td>
+                  <td class="muted">${i.rule||i.issue||'—'}</td>
+                  <td>${(i.count||0).toLocaleString()}</td>
+                  <td>${badge(i.severity||'HIGH')}</td>
+                  <td class="muted">${i.detail||''}</td>
+                </tr>`).join('');
+            }).join('') : '<tr><td colspan="5" class="ok-row">✅ No impossible values detected</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── DUPLICATES ────────────────────────────────────────────────────────────────
+function renderDuplicates(dup) {
+  const keyDups = Object.entries(dup.key_column_duplicates || {});
+  document.getElementById('tab-duplicates').innerHTML = `
+    <div class="stat-grid" style="max-width:600px;margin-bottom:24px">
+      ${statCard(dup.full_row_duplicates.toLocaleString(), 'Exact Duplicates', dup.full_row_duplicates>0?'#ffca28':'#00e676')}
+      ${statCard((dup.full_row_duplicate_pct*100).toFixed(2)+'%', 'Duplicate Rate', dup.full_row_duplicate_pct>0.05?'#ff7043':dup.full_row_duplicate_pct>0.01?'#ffca28':'#00e676')}
+      ${statCard(dup.hidden_near_duplicate_count, 'Near-Duplicates', dup.hidden_near_duplicate_count>0?'#ffca28':'#00e676')}
+      ${statCard(badge(dup.severity), 'Severity', '')}
+    </div>
+    <div class="card">
+      <div class="card-head">Duplicate Analysis</div>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:16px">${dupImpact(dup)}</p>
+      <p style="color:var(--accent);font-size:13px"><strong>Recommendation:</strong> ${dupRec(dup)}</p>
+      ${keyDups.length ? `
+        <div style="margin-top:20px">
+          <div class="card-head" style="margin-bottom:12px">Key Column Violations</div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Column</th><th>Duplicate Values</th><th>Rate</th></tr></thead>
+              <tbody>
+                ${keyDups.map(([col,info]) => `
+                  <tr>
+                    <td class="mono">${col}</td>
+                    <td>${info.duplicate_values.toLocaleString()}</td>
+                    <td>${(info.duplicate_pct*100).toFixed(2)}%</td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>` : ''}
+    </div>`;
+}
+
+// ── CATEGORICAL ───────────────────────────────────────────────────────────────
+function renderCategorical(cat) {
+  const entries = Object.entries(cat.columns);
+  document.getElementById('tab-categorical').innerHTML = `
+    <div class="card">
+      <div class="card-head">Categorical Integrity — ${cat.summary.categorical_columns_checked} columns checked, ${cat.summary.columns_with_issues} with issues</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Issue</th><th>Count</th><th>Severity</th><th>Description</th></tr></thead>
+          <tbody>
+            ${entries.length ? entries.flatMap(([col,issues]) =>
+              issues.filter(i => i.issue_type !== 'high_cardinality').map(i => `
+                <tr>
+                  <td class="mono">${col}</td>
+                  <td style="color:var(--text)">${(i.issue_type||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</td>
+                  <td>${i.count||'—'}</td>
+                  <td>${badge(i.severity||'LOW')}</td>
+                  <td class="muted">${i.description||''}</td>
+                </tr>`)).join('') : '<tr><td colspan="5" class="ok-row">✅ No categorical inconsistencies found</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── DRIFT ─────────────────────────────────────────────────────────────────────
+function renderDrift(sh) {
+  if (!sh) {
+    document.getElementById('tab-drift').innerHTML = `
+      <div class="card" style="text-align:center;padding:60px">
+        <div style="font-size:40px;margin-bottom:16px">📊</div>
+        <div style="font-size:16px;font-weight:600;margin-bottom:8px">No baseline dataset provided</div>
+        <div style="color:var(--muted);font-size:13px">Upload a second CSV file to compare distributions and detect drift between two time periods.</div>
+      </div>`;
+    return;
+  }
+  const drifted = Object.entries(sh.columns).filter(([,v]) => v.drift_detected);
+  document.getElementById('tab-drift').innerHTML = `
+    <div class="drift-stats">
+      ${driftChip(sh.summary.columns_compared, 'Compared', '#00d4ff')}
+      ${driftChip(sh.summary.columns_with_drift, 'Drifted', sh.summary.columns_with_drift>0?'#ff7043':'#00e676')}
+      ${driftChip((sh.summary.drift_pct_of_schema*100).toFixed(0)+'%', 'Schema Drift', sh.summary.drift_pct_of_schema>.3?'#ff7043':'#ffca28')}
+    </div>
+    <div class="card">
+      <div class="card-head">Distribution Shift by Column</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Column</th><th>Type</th><th>Shift Detail</th><th>Severity</th><th>Explanation</th></tr></thead>
+          <tbody>
+            ${drifted.length ? drifted.map(([col,v]) => `
+              <tr>
+                <td class="mono">${col}</td>
+                <td class="muted">${v.type_class||'—'}</td>
+                <td class="muted">${v.mean_shift_pct!=null ? 'Mean: '+v.mean_shift_pct+'% | KS p='+v.ks_p_value : 'Cat. shift'}</td>
+                <td>${badge(v.severity||'MEDIUM')}</td>
+                <td class="muted" style="font-size:12px;max-width:280px">${v.explanation||''}</td>
+              </tr>`).join('') : '<tr><td colspan="5" class="ok-row">✅ No significant drift detected</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── KPI ───────────────────────────────────────────────────────────────────────
+function renderKPI(sc) {
+  const d = sc.dimension_scores;
+  const kpis = [
+    ['💰', 'Revenue Reporting',       Math.min(d.outliers,d.duplicates),    'Outliers & duplicates inflate revenue.'],
+    ['👥', 'Customer Count',          d.duplicates,                          'Duplicate records overcount unique customers.'],
+    ['🤖', 'ML / AI Model Quality',   Math.min(d.missingness,d.outliers),   'Missing values & outliers degrade model accuracy.'],
+    ['📋', 'Compliance Reporting',    Math.min(d.missingness,d.categorical_issues), 'Incomplete data may fail audit checks.'],
+    ['📈', 'Trend Analysis',          d.distribution_shift,                  'Distribution shifts invalidate period-over-period KPIs.'],
+  ];
+  const kpiCards = kpis.map(([ico,name,score,reason]) => {
+    const col = score>=80?'#00e676':score>=60?'#ffca28':'#ff7043';
+    const level = score>=80?'LOW RISK':score>=60?'MEDIUM RISK':'HIGH RISK';
+    return `<div class="kpi-card" style="border-left:3px solid ${col}">
+      <div class="kpi-ico">${ico}</div>
+      <div class="kpi-body">
+        <div class="kpi-name">${name}</div>
+        <div class="kpi-risk" style="color:${col}">${level}</div>
+        <div class="muted" style="font-size:12px;margin-top:4px">${reason}</div>
+      </div>
+      <div class="kpi-score-val" style="color:${col}">${score.toFixed(0)}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('tab-kpi').innerHTML = `
+    <div class="kpi-grid">${kpiCards}</div>
+    <div class="chart-card" style="max-width:440px">
+      <div class="chart-label">Dimension Score Overview</div>
+      <div class="chart-wrap"><canvas id="kpiRadarC"></canvas></div>
+    </div>`;
+
+  const dimL = Object.keys(sc.dimension_scores).map(k=>k.replace('_',' ').replace(/\b\w/g,c=>c.toUpperCase()));
+  const dimV = Object.values(sc.dimension_scores);
+  chartInstances.kpiRadar = new Chart(document.getElementById('kpiRadarC'), {
+    type:'radar',
+    data:{ labels:dimL, datasets:[{ data:dimV, backgroundColor:'rgba(0,230,118,0.1)',
+      borderColor:'#00e676', pointBackgroundColor:dimV.map(v=>v>=80?'#00e676':v>=60?'#ffca28':'#ff7043'),
+      pointRadius:5, borderWidth:2 }] },
+    options:{ responsive:true, maintainAspectRatio:false,
+      scales:{ r:{ min:0,max:100, ticks:{stepSize:25,backdropColor:'transparent',font:{size:9}},
+        grid:{color:'#1e2730'}, angleLines:{color:'#1e2730'},
+        pointLabels:{font:{size:11},color:'#e8f0f7'} } },
+      plugins:{ legend:{display:false} } }
+  });
+}
+
+// ── REMEDIATION ───────────────────────────────────────────────────────────────
+function renderRemediation(sc, miss, out, dup, cat, sh) {
+  const empty  = miss.summary.completely_empty_cols || [];
+  const impos  = out.summary.impossible_value_columns || [];
+  const crit   = miss.summary.critical_cols || [];
+  const severe = out.summary.severe_outlier_columns || [];
+
+  const p1 = [
+    ...empty.length  ? [`Drop/reconstruct empty columns: <strong>${empty.join(', ')}</strong>`] : [],
+    ...impos.length  ? [`Fix impossible values in: <strong>${impos.join(', ')}</strong>`] : [],
+    ...dup.severity==='HIGH' ? ['Implement upstream deduplication in ETL pipeline.'] : [],
+    ...(p1.length===0 ? ['No critical immediate actions required. ✅'] : []),
+  ];
+  if (!p1.length) p1.push('No critical immediate actions required. ✅');
+
+  const p2 = [
+    ...crit.length   ? [`Apply MICE/KNN imputation for: <strong>${crit.slice(0,3).join(', ')}</strong>`] : [],
+    ...severe.length ? [`Cap/winsorise outliers in: <strong>${severe.slice(0,3).join(', ')}</strong>`] : [],
+    ...cat.summary.columns_with_issues>0 ? ['Standardise categoricals — lowercase, strip whitespace.'] : [],
+  ];
+  if (!p2.length) p2.push('No short-term actions required. ✅');
+
+  const p3 = [
+    'Add schema validation to the ingestion pipeline.',
+    'Implement data contracts between source and warehouse.',
+    'Schedule automated DQ audits on each data load.',
+    'Document column definitions and acceptable value ranges.',
+    ...sh ? ['Set up drift monitoring with Slack/email alerting.'] : [],
+  ];
+
+  document.getElementById('tab-remediation').innerHTML = `
+    <div class="rem-grid">
+      <div class="rem-card" style="border-top:3px solid var(--red)">
+        <div class="rem-priority" style="color:var(--red)">Priority 1</div>
+        <div class="rem-title">Immediate — Before Production</div>
+        <ul class="rem-list">${p1.map(i=>`<li>${i}</li>`).join('')}</ul>
+      </div>
+      <div class="rem-card" style="border-top:3px solid var(--yellow)">
+        <div class="rem-priority" style="color:var(--yellow)">Priority 2</div>
+        <div class="rem-title">Short-Term — Within Sprint</div>
+        <ul class="rem-list">${p2.map(i=>`<li>${i}</li>`).join('')}</ul>
+      </div>
+      <div class="rem-card" style="border-top:3px solid var(--accent)">
+        <div class="rem-priority" style="color:var(--accent)">Priority 3</div>
+        <div class="rem-title">Medium-Term — Governance</div>
+        <ul class="rem-list">${p3.map(i=>`<li>${i}</li>`).join('')}</ul>
+      </div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helper components
+// ─────────────────────────────────────────────────────────────────────────────
+function statCard(val, lbl, color) {
+  return `<div class="stat-card">
+    <div class="stat-val" style="color:${color||'var(--accent)'}">${val}</div>
+    <div class="stat-lbl">${lbl}</div>
+  </div>`;
+}
+
+function dimCard(key, val) {
+  const color = val>=80?'#00e676':val>=60?'#ffca28':'#ff7043';
+  const label = key.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  return `<div class="dim-card">
+    <div class="dim-label">${label}</div>
+    <div class="dim-score-row">
+      <div class="dim-score-num" style="color:${color}">${val.toFixed(0)}</div>
+      <div class="dim-bar"><div class="dim-bar-fill" style="width:${val}%;background:${color}"></div></div>
+    </div>
+  </div>`;
+}
+
+function tbar(pct, color, label) {
+  const w = Math.min(pct, 100);
+  const lbl = label || pct.toFixed(1)+'%';
+  return `<div class="tbar-wrap">
+    <div class="tbar"><div class="tbar-fill" style="width:${w}%;background:${color}"></div></div>
+    <span class="tbar-num">${lbl}</span>
+  </div>`;
+}
+
+function badge(sev) {
+  const map = { CRITICAL:'b-crit', HIGH:'b-high', MEDIUM:'b-med', LOW:'b-low', OK:'b-ok' };
+  return `<span class="badge ${map[sev]||'b-low'}">${sev}</span>`;
+}
+
+function sevColor(sev) {
+  return {CRITICAL:'#ff1744',HIGH:'#ff7043',MEDIUM:'#ffca28',LOW:'#00d4ff',OK:'#00e676'}[sev]||'#6b8099';
+}
+
+function driftChip(val, lbl, color) {
+  return `<div class="drift-chip">
+    <div class="drift-chip-val" style="color:${color}">${val}</div>
+    <div class="drift-chip-lbl">${lbl}</div>
+  </div>`;
+}
+
+function scoreInterp(status) {
+  return {
+    EXCELLENT: 'Dataset meets enterprise standards. Safe for production.',
+    GOOD:      'Largely clean with minor issues. Address before deployment.',
+    FAIR:      'Significant issues detected. Remediation required before use.',
+    POOR:      'Extensive problems. Major cleaning effort needed.',
+    CRITICAL:  'UNSAFE FOR USE. Escalate to data engineering immediately.',
+  }[status] || '';
+}
+
+function dupImpact(dup) {
+  if (dup.severity==='OK') return 'Duplicate rate is negligible. No business impact expected.';
+  return `${dup.full_row_duplicates.toLocaleString()} duplicate records (${(dup.full_row_duplicate_pct*100).toFixed(2)}%) inflate row counts, double-count metrics, and bias model training.`;
+}
+function dupRec(dup) {
+  if (dup.severity==='OK') return 'No deduplication required.';
+  return 'Apply deduplication in ETL using a composite primary key. Add row-level hashing in the ingestion pipeline.';
+}
+function missRec(sev) {
+  return {CRITICAL:'Drop or reconstruct column',HIGH:'Apply MICE/KNN imputation',
+    MEDIUM:'Use median/mode imputation',LOW:'Row deletion or forward-fill',OK:'No action'}[sev]||'Review';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function show(screen) {
+  ['landing','loading','results'].forEach(id => {
+    const el = document.getElementById(id);
+    el.style.display = id===screen ? (id==='loading'?'flex':'block') : 'none';
+  });
+}
+
+function showTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+function setStatus(msg, pct) {
+  document.getElementById('loadingStatus').textContent = msg;
+  document.getElementById('loadingBar').style.width = pct + '%';
+}
+
+function resetApp() {
+  reportData = null; csvFile1 = null; csvFile2 = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('fileInput2').value = '';
+  document.getElementById('dropzone').querySelector('.drop-title').textContent = 'Drop your CSV here';
+  document.getElementById('dropzone').querySelector('.drop-sub').textContent = 'or click to browse · supports up to 50MB';
+  document.getElementById('dropzone').querySelector('.drop-btn').textContent = 'Choose File';
+  document.getElementById('dropzone').onclick = () => document.getElementById('fileInput').click();
+  document.getElementById('secondDropzone').textContent = '📎 Drop previous period CSV here (optional — enables drift analysis)';
+  document.getElementById('secondDropzone').classList.remove('has-file');
+  show('landing');
+}
+
+function downloadJSON() {
+  if (!reportData) return;
+  const blob = new Blob([JSON.stringify(reportData, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (csvFile1?.name.replace('.csv','')||'dataset') + '_dq_report.json';
+  a.click();
+}
+
+function downloadHTML() {
+  const blob = new Blob([document.documentElement.outerHTML], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (csvFile1?.name.replace('.csv','')||'dataset') + '_dq_dashboard.html';
+  a.click();
+}
+</script>
+</body>
+</html>
