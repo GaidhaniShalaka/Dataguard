@@ -1538,10 +1538,9 @@ function renderRemediation(sc, miss, out, dup, cat, sh) {
   const severe = out.summary.severe_outlier_columns || [];
 
   const p1 = [
-    ...empty.length  ? [`Drop/reconstruct empty columns: <strong>${empty.join(', ')}</strong>`] : [],
-    ...impos.length  ? [`Fix impossible values in: <strong>${impos.join(', ')}</strong>`] : [],
+    ...empty.length        ? [`Drop/reconstruct empty columns: <strong>${empty.join(', ')}</strong>`] : [],
+    ...impos.length        ? [`Fix impossible values in: <strong>${impos.join(', ')}</strong>`] : [],
     ...dup.severity==='HIGH' ? ['Implement upstream deduplication in ETL pipeline.'] : [],
-    ...(p1.length===0 ? ['No critical immediate actions required. ✅'] : []),
   ];
   if (!p1.length) p1.push('No critical immediate actions required. ✅');
 
